@@ -1,0 +1,26 @@
+From 96919e868264d001807a22b862548e5b51571684 Mon Sep 17 00:00:00 2001
+From: Gaurang Khodifad <gaurang.khodifad@volansystech.com>
+Date: Wed, 27 Dec 2017 17:20:02 +0530
+Subject: [PATCH] Change UIO compatible to genirq
+
+Signed-off-by: Gaurang Khodifad <gaurang.khodifad@volansystech.com>
+---
+ drivers/uio/uio_pdrv_genirq.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/uio/uio_pdrv_genirq.c b/drivers/uio/uio_pdrv_genirq.c
+index f598ecd..5767327 100644
+--- a/drivers/uio/uio_pdrv_genirq.c
++++ b/drivers/uio/uio_pdrv_genirq.c
+@@ -253,7 +253,7 @@ static int uio_pdrv_genirq_runtime_nop(struct device *dev)
+ 
+ #ifdef CONFIG_OF
+ static struct of_device_id uio_of_genirq_match[] = {
+-	{ /* This is filled with module_parm */ },
++	{ .compatible = "genirq", },
+ 	{ /* Sentinel */ },
+ };
+ MODULE_DEVICE_TABLE(of, uio_of_genirq_match);
+-- 
+1.9.1
+

@@ -1,0 +1,31 @@
+From c5b5368c4b32c5a6c005a2fff355074f104bd6a0 Mon Sep 17 00:00:00 2001
+From: Gaurang Khodifad <gaurang.khodifad@volansystech.com>
+Date: Fri, 22 Dec 2017 12:12:58 +0530
+Subject: [PATCH] Set ethaddr in uboot Env if hwaddr found in fuse
+
+- If valid HWaddr is found in the fuse, the ethaddr uboot variable shall
+  be updated in the u-boot environment.
+- Currently the ethaddr will not be updated if set already
+
+Signed-off-by: Gaurang Khodifad <gaurang.khodifad@volansystech.com>
+---
+ drivers/net/fec_mxc.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/drivers/net/fec_mxc.c b/drivers/net/fec_mxc.c
+index 76ff93d..5f2226a 100644
+--- a/drivers/net/fec_mxc.c
++++ b/drivers/net/fec_mxc.c
+@@ -1098,8 +1098,7 @@ static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
+ 			sprintf(mac, "eth%daddr", fec->dev_id);
+ 		else
+ 			strcpy(mac, "ethaddr");
+-		if (!getenv(mac))
+-			eth_setenv_enetaddr(mac, ethaddr);
++		eth_setenv_enetaddr(mac, ethaddr);
+ 	}
+ 	return ret;
+ err4:
+-- 
+1.9.1
+

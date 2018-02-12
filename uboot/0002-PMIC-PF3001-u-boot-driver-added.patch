@@ -1,0 +1,158 @@
+From 93b7ad797ca98a229462d7a41b8e1a80b294c9d7 Mon Sep 17 00:00:00 2001
+From: Gaurang Khodifad <gaurang.khodifad@volansystech.com>
+Date: Tue, 26 Dec 2017 15:01:52 +0530
+Subject: [PATCH] PMIC PF3001 u-boot driver added
+
+Added driver for the PMIC PF3001 u-boot for the modular gateway.
+
+Signed-off-by: Gaurang Khodifad <gaurang.khodifad@volansystech.com>
+---
+ drivers/power/pmic/Makefile         |  1 +
+ drivers/power/pmic/pmic_pfuze3001.c | 32 ++++++++++++++
+ include/power/pfuze3001_pmic.h      | 83 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 116 insertions(+)
+ create mode 100644 drivers/power/pmic/pmic_pfuze3001.c
+ create mode 100644 include/power/pfuze3001_pmic.h
+
+diff --git a/drivers/power/pmic/Makefile b/drivers/power/pmic/Makefile
+index 40240c7..008a9ee 100644
+--- a/drivers/power/pmic/Makefile
++++ b/drivers/power/pmic/Makefile
+@@ -29,6 +29,7 @@ obj-$(CONFIG_POWER_MUIC_MAX8997) += muic_max8997.o
+ obj-$(CONFIG_POWER_MAX77686) += pmic_max77686.o
+ obj-$(CONFIG_POWER_PFUZE100) += pmic_pfuze100.o
+ obj-$(CONFIG_POWER_PFUZE3000) += pmic_pfuze3000.o
++obj-$(CONFIG_POWER_PFUZE3001) += pmic_pfuze3001.o
+ obj-$(CONFIG_POWER_TPS65217) += pmic_tps65217.o
+ obj-$(CONFIG_POWER_TPS65218) += pmic_tps62362.o
+ obj-$(CONFIG_POWER_TPS65218) += pmic_tps65218.o
+diff --git a/drivers/power/pmic/pmic_pfuze3001.c b/drivers/power/pmic/pmic_pfuze3001.c
+new file mode 100644
+index 0000000..78e9dc8
+--- /dev/null
++++ b/drivers/power/pmic/pmic_pfuze3001.c
+@@ -0,0 +1,32 @@
++/*
++ * Copyright (C) 2017 Volansys Technologies .
++ * Dhvanil Patel <dhvanil.patel@volansystech.com>
++ *
++ * SPDX-License-Identifier:      GPL-2.0+
++ */
++
++#include <common.h>
++#include <errno.h>
++#include <i2c.h>
++#include <power/pmic.h>
++#include <power/pfuze3001_pmic.h>
++
++int power_pfuze3001_init(unsigned char bus)
++{
++	static const char name[] = "PFUZE3001";
++	struct pmic *p = pmic_alloc();
++
++	if (!p) {
++		printf("%s: POWER allocation error!\n", __func__);
++		return -ENOMEM;
++	}
++
++	p->name = name;
++	p->interface = PMIC_I2C;
++	p->number_of_regs = PMIC_NUM_OF_REGS;
++	p->hw.i2c.addr = CONFIG_POWER_PFUZE3001_I2C_ADDR;
++	p->hw.i2c.tx_num = 1;
++	p->bus = bus;
++
++	return 0;
++}
+diff --git a/include/power/pfuze3001_pmic.h b/include/power/pfuze3001_pmic.h
+new file mode 100644
+index 0000000..8287dfe
+--- /dev/null
++++ b/include/power/pfuze3001_pmic.h
+@@ -0,0 +1,83 @@
++/*
++ * Copyright (C) 2017 Volansys Technologies .
++ * Dhvanil Patel <dhvanil.patel@volansystech.com>
++ *
++ * SPDX-License-Identifier:     GPL-2.0+
++ */
++#ifndef __PFUZE3001_PMIC_H_
++#define __PFUZE3001_PMIC_H_
++
++/* PFUZE3001 registers */
++enum {
++	PFUZE3001_DEVICEID	= 0x00,
++
++	PFUZE3001_REVID		= 0x03,
++	PFUZE3001_FABID		= 0x04,
++	PFUZE3001_INTSTAT0	= 0x05,
++	PFUZE3001_INTMASK0	= 0x06,
++	PFUZE3001_INTSENSE0	= 0x07,
++	PFUZE3001_INTSTAT1	= 0x08,
++	PFUZE3001_INTMASK1	= 0x09,
++	PFUZE3001_INTSENSE1	= 0x0A,
++
++	PFUZE3001_INTSTAT3	= 0x0E,
++	PFUZE3001_INTMASK3	= 0x0F,
++	PFUZE3001_INTSENSE3	= 0x10,
++	PFUZE3001_INTSTAT4	= 0x11,
++	PFUZE3001_INTMASK4	= 0x12,
++	PFUZE3001_INTSENSE4	= 0x13,
++
++	PFUZE3001_COINCTL	= 0x1A,
++	PFUZE3001_PWRCTL	= 0x1B,
++	PFUZE3001_MEMA		= 0x1C,
++	PFUZE3001_MEMB		= 0x1D,
++	PFUZE3001_MEMC		= 0x1E,
++	PFUZE3001_MEMD		= 0x1F,
++
++	PFUZE3001_SW1AVOLT	= 0x20,
++	PFUZE3001_SW1ASTBY	= 0x21,
++	PFUZE3001_SW1AOFF	= 0x22,
++	PFUZE3001_SW1AMODE	= 0x23,
++	PFUZE3001_SW1ACONF	= 0x24,
++
++	PFUZE3001_SW1BVOLT	= 0x2E,
++	PFUZE3001_SW1BSTBY	= 0x2F,
++	PFUZE3001_SW1BOFF	= 0x30,
++	PFUZE3001_SW1BMODE	= 0x31,
++	PFUZE3001_SW1BCONF	= 0x32,
++
++	PFUZE3001_SW2VOLT	= 0x35,
++	PFUZE3001_SW2STBY	= 0x36,
++	PFUZE3001_SW2OFF	= 0x37,
++	PFUZE3001_SW2MODE	= 0x38,
++	PFUZE3001_SW2CONF	= 0x39,
++
++	PFUZE3001_SW3VOLT	= 0x3C,
++	PFUZE3001_SW3STBY	= 0x3D,
++	PFUZE3001_SW3OFF	= 0x3E,
++	PFUZE3001_SW3MODE	= 0x3F,
++	PFUZE3001_SW3CONF	= 0x40,
++
++	PFUZE3001_SWBSTCTL	= 0x66,
++
++	PFUZE3001_LDOGCTL	= 0x69,
++	PFUZE3001_VREFDDRCTL	= 0x6A,
++	PFUZE3001_VSNVSCTL	= 0x6B,
++	PFUZE3001_VLDO1CTL	= 0x6C,
++	PFUZE3001_VLDO2CTL	= 0x6D,
++	PFUZE3001_VCC_SDCTL	= 0x6E,
++	PFUZE3001_V33CTL	= 0x6F,
++	PFUZE3001_VLDO3CTL	= 0x70,
++	PFUZE3001_VLD4CTL	= 0x71,
++
++	PMIC_NUM_OF_REGS	= 0x7F,
++};
++
++int power_pfuze3001_init(unsigned char bus);
++
++/* Voltage Configuration */
++#define PFUZE3001_SW1AB_SETP(x)    ((x - 7000) / 250)
++#define PFUZE3001_SW3_SETP(x)      ((x - 9000) / 500)
++#define PFUZE3001_VLDO_SETP(x)     ((x - 8000) / 500)
++
++#endif
+-- 
+1.9.1
+

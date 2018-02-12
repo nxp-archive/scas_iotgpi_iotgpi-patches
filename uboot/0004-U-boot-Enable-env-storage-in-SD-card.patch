@@ -1,0 +1,245 @@
+From 39a2dc6703dca3f0cb3db289dbcb2fbe514cb74b Mon Sep 17 00:00:00 2001
+From: Gaurang Khodifad <gaurang.khodifad@volansystech.com>
+Date: Tue, 26 Dec 2017 12:41:05 +0530
+Subject: [PATCH] U-boot: Enable env storage in SD card
+
+This patch adds support to store u-boot env in mmc media instead of
+nand. This is specifically required for OTA update support on SD card.
+The default env are also compatible with OTA update mechanism for SD card.
+If mmc doesn't contain valid env (i.e. no env or corrupted) then u-boot
+will save the env first and then boots the device.
+Enable "CONFIG_SD_OTA_MODE" in defconfig to enable this feature. Also,
+added new defconfig file to generate saperate u-boot image with this
+feature
+enabled.
+
+Signed-off-by: Gaurang Khodifad <gaurang.khodifad@volansystech.com>
+---
+ configs/mx6ulmgsdota_defconfig |  47 +++++++++++++
+ include/configs/mx6ulmgotasd.h | 160 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 210 insertions(+)
+ create mode 100644 configs/mx6ulmgsdota_defconfig
+ create mode 100644 include/configs/mx6ulmgotasd.h
+
+diff --git a/configs/mx6ulmgsdota_defconfig b/configs/mx6ulmgsdota_defconfig
+new file mode 100644
+index 0000000..0d98d05
+--- /dev/null
++++ b/configs/mx6ulmgsdota_defconfig
+@@ -0,0 +1,47 @@
++CONFIG_ARM=y
++CONFIG_ARCH_MX6=y
++CONFIG_TARGET_MX6ULMG=y
++CONFIG_DEFAULT_DEVICE_TREE="imx6ul-volansys-gw"
++CONFIG_SYS_EXTRA_OPTIONS="IMX_CONFIG=board/freescale/mx6ulmg/imximage.cfg,DDR3L_MT41K128M16JT"
++CONFIG_SD_OTA_MODE=y
++CONFIG_BOOTDELAY=3
++CONFIG_BOARD_EARLY_INIT_F=y
++CONFIG_HUSH_PARSER=y
++CONFIG_CMD_BOOTZ=y
++# CONFIG_CMD_IMLS is not set
++CONFIG_CMD_MEMTEST=y
++CONFIG_CMD_MMC=y
++CONFIG_CMD_SF=y
++CONFIG_CMD_USB=y
++CONFIG_CMD_I2C=y
++CONFIG_CMD_GPIO=y
++CONFIG_CMD_DHCP=y
++CONFIG_CMD_PING=y
++CONFIG_CMD_CACHE=y
++CONFIG_CMD_NET=y
++CONFIG_CMD_EXT2=y
++CONFIG_CMD_EXT4=y
++CONFIG_CMD_EXT4_WRITE=y
++CONFIG_CMD_FAT=y
++CONFIG_CMD_FS_GENERIC=y
++CONFIG_OF_CONTROL=y
++# CONFIG_BLK is not set
++CONFIG_DM_GPIO=y
++CONFIG_DM_MMC=y
++CONFIG_DM_SPI=y
++CONFIG_DM_SPI_FLASH=y
++CONFIG_SPI_FLASH=y
++CONFIG_SPI_FLASH_BAR=y
++CONFIG_SPI_FLASH_STMICRO=y
++# CONFIG_DM_MMC_OPS is not set
++CONFIG_PINCTRL=y
++CONFIG_PINCTRL_IMX6=y
++CONFIG_DM_REGULATOR=y
++CONFIG_DM_REGULATOR_FIXED=y
++CONFIG_DM_REGULATOR_GPIO=y
++CONFIG_USB=y
++CONFIG_DM_USB=y
++CONFIG_USB_EHCI_HCD=y
++CONFIG_USB_STORAGE=y
++CONFIG_FSL_QSPI=y
++CONFIG_DM_ETH=y
+diff --git a/include/configs/mx6ulmgotasd.h b/include/configs/mx6ulmgotasd.h
+new file mode 100644
+index 0000000..78f5e7c
+--- /dev/null
++++ b/include/configs/mx6ulmgotasd.h
+@@ -0,0 +1,160 @@
++/*
++ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
++ *
++ * Configuration settings for the Freescale i.MX6UL modular gateway OTA image.
++ *
++ * SPDX-License-Identifier:	GPL-2.0+
++ */
++#ifndef __MX6UL_MG_OTA_SD_H
++#define __MX6UL_MG_OTA_SD_H
++
++#define CONFIG_DEFAULT_FDT_FILE		"imx6ul-volansys-gw-block-a.dtb"
++#define CONFIG_DEFAULT_KERNEL_FILE	"zImage-block-a"
++
++#define CONFIG_ENV_SIZE				SZ_8K
++#define CONFIG_ENV_OFFSET			(12 * SZ_64K)
++#define CONFIG_BOOTCOUNT_ENV
++#define CONFIG_BOOTCOUNT_LIMIT
++/*store redundant env in next sector*/
++#define CONFIG_ENV_OFFSET_REDUND	CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE
++
++#define CONFIG_SYS_MMC_IMG_LOAD_PART	1
++#define CONFIG_SYS_MMC_ENV_DEV			0   /* USDHC2 */
++#define CONFIG_SYS_MMC_ENV_PART			0	/* user area */
++#define CONFIG_BOOTARGS_CMA_SIZE		" cma=96M "
++
++#define CONFIG_MMC_ENV_SETTINGS \
++        "script=boot.scr\0" \
++        "image=" CONFIG_DEFAULT_KERNEL_FILE "\0" \
++        "console=ttymxc0\0" \
++        "fdt_high=0xffffffff\0" \
++        "initrd_high=0xffffffff\0" \
++        "fdt_file=" CONFIG_DEFAULT_FDT_FILE "\0" \
++        "fdt_addr=0x83000000\0" \
++        "boot_fdt=try\0" \
++        "ip_dyn=yes\0" \
++        "mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
++        "mmcpart=" __stringify(CONFIG_SYS_MMC_IMG_LOAD_PART) "\0" \
++        "mmcautodetect=yes\0" \
++        "mmcargs=setenv bootargs console=${console},${baudrate} " \
++            CONFIG_BOOTARGS_CMA_SIZE \
++                "root=/dev/mmcblk0p${mmc_root_part} rootwait rw sd_ota=1\0" \
++        "loadbootscript=" \
++                "fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${script};\0" \
++        "bootscript=echo Running bootscript from mmc ...; " \
++                "source\0" \
++        "loadimage=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${image}\0" \
++        "loadfdt=fatload mmc ${mmcdev}:${mmcpart} ${fdt_addr} ${fdt_file}\0" \
++        "mmcboot=echo Booting from mmc ...; " \
++                "run mmcargs; " \
++                "if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
++                        "if run loadfdt; then " \
++                                "bootz ${loadaddr} - ${fdt_addr}; " \
++                        "else " \
++                                "if test ${boot_fdt} = try; then " \
++                                        "bootz; " \
++                                "else " \
++                                        "echo WARN: Cannot load the DT; " \
++                                "fi; " \
++                        "fi; " \
++                "else " \
++                        "bootz; " \
++                "fi;\0" \
++        "netargs=setenv bootargs console=${console},${baudrate} " \
++            CONFIG_BOOTARGS_CMA_SIZE \
++                "root=/dev/nfs " \
++        "ip=dhcp nfsroot=${serverip}:${nfsroot},v3,tcp\0" \
++                "netboot=echo Booting from net ...; " \
++                "run netargs; " \
++                "if test ${ip_dyn} = yes; then " \
++                        "setenv get_cmd dhcp; " \
++                "else " \
++                        "setenv get_cmd tftp; " \
++                "fi; " \
++                "${get_cmd} ${image}; " \
++                "if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
++                        "if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
++                                "bootz ${loadaddr} - ${fdt_addr}; " \
++                        "else " \
++                                "if test ${boot_fdt} = try; then " \
++                                        "bootz; " \
++                                "else " \
++                                        "echo WARN: Cannot load the DT; " \
++                                "fi; " \
++                        "fi; " \
++                "else " \
++                        "bootz; " \
++                "fi;\0" \
++        "netargs=setenv bootargs console=${console},${baudrate} " \
++            CONFIG_BOOTARGS_CMA_SIZE \
++                "root=/dev/nfs " \
++        "ip=dhcp nfsroot=${serverip}:${nfsroot},v3,tcp\0" \
++                "netboot=echo Booting from net ...; " \
++                "run netargs; " \
++                "if test ${ip_dyn} = yes; then " \
++                        "setenv get_cmd dhcp; " \
++                "else " \
++                        "setenv get_cmd tftp; " \
++                "fi; " \
++                "${get_cmd} ${image}; " \
++                "if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
++                        "if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
++                                "bootz ${loadaddr} - ${fdt_addr}; " \
++                        "else " \
++                                "if test ${boot_fdt} = try; then " \
++                                        "bootz; " \
++                                "else " \
++                                        "echo WARN: Cannot load the DT; " \
++                                "fi; " \
++                        "fi; " \
++                "else " \
++                        "bootz; " \
++                "fi;\0" \
++	   "bootcmd_mmc=" \
++           "mmc dev ${mmcdev};" \
++           "mmc dev ${mmcdev}; if mmc rescan; then " \
++                   "if run loadbootscript; then " \
++                           "run bootscript; " \
++                   "else " \
++                           "if run loadimage; then " \
++                                   "run mmcboot; " \
++                           "else run netboot; " \
++                           "fi; " \
++                   "fi; " \
++           "else run netboot; fi; \0" \
++			"mmc_root_part=2 \0" \
++			"upgrade_available=0 \0" \
++			"kernel_updated=n \0" \
++			"rootfs_updated=n \0" \
++			"bootlimit=10 \0" \
++			"recovery_script_name=uboot-recovery.img \0" \
++			"loadrecoveryscript=" \
++			"fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${recovery_script_name}; \0" \
++			"recoveryscript=source ${loadaddr}; \0" \
++			"altbootcmd=" \
++			"mmc dev ${mmcdev}; "\
++			"if mmc rescan; then " \
++				"if run loadrecoveryscript; then " \
++					"run recoveryscript; "\
++				"else " \
++					"echo recovery script not found; " \
++				"fi; " \
++			"fi; \0"
++
++#define CONFIG_EXTRA_ENV_SETTINGS \
++	CONFIG_MFG_ENV_SETTINGS \
++    CONFIG_VIDEO_MODE \
++	CONFIG_MMC_ENV_SETTINGS \
++	"panel=TFT43AB\0" \
++	"fdt_addr=0x83000000\0" \
++	"fdt_high=0xffffffff\0"	  \
++	"console=ttymxc0\0" \
++"envsaved=0 \0" \
++	"prebootcmd=" \
++	"if test ${envsaved} = 0; then "\
++		"setenv envsaved 1; " \
++		"saveenv; "\
++	"fi \0" \
++	"bootcmd=run prebootcmd; run bootcmd_mmc \0"
++
++#endif /*__MX6UL_MG_OTA_SD_H*/
+-- 
+1.9.1
+
