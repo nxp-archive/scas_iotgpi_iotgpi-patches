@@ -1,0 +1,83 @@
+From d75f1c16be2d4ac213e5274aff301a8ff7572f29 Mon Sep 17 00:00:00 2001
+From: Pratik Rathod <pratik.rathod@volansystech.com>
+Date: Thu, 16 Mar 2017 16:10:29 +0530
+Subject: [PATCH] Add extra features for gateway ota
+
+JIRA-Title: Yocto: Add SWUpdate in yocto build
+This patch adds support to seek the block device before flashing raw images.
+Use "seek=bytes" in software description to use it.
+
+Also, path to download/extract files has been changed to /media/userdata to
+support large files.
+
+TASK: IMXGTWY-590
+
+Signed-off-by: Pratik Rathod <pratik.rathod@volansystech.com>
+---
+ handlers/raw_handler.c | 7 +++++++
+ include/swupdate.h     | 1 +
+ include/util.h         | 2 +-
+ parser/parser.c        | 4 ++++
+ 4 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/handlers/raw_handler.c b/handlers/raw_handler.c
+index b4d4063..03918df 100644
+--- a/handlers/raw_handler.c
++++ b/handlers/raw_handler.c
+@@ -46,6 +46,13 @@ static int install_raw_image(struct img_type *img,
+ 		return -1;
+ 	}
+ 	
++	if (img->seek > 0) {
++		TRACE("Seek %ld device %s", img->seek, img->device);
++		if (lseek(fdout, img->seek, SEEK_SET) != img->seek) {
++			TRACE("Seek %ld failed: %s", img->seek, strerror(errno));
++		}
++	}
++
+ 	ret = copyimage(&fdout, img, NULL);
+ 
+ 	close(fdout);
+diff --git a/include/swupdate.h b/include/swupdate.h
+index b244d3d..850f446 100644
+--- a/include/swupdate.h
++++ b/include/swupdate.h
+@@ -77,6 +77,7 @@ struct img_type {
+ 	int is_script;
+ 	int is_partitioner;
+ 	long long partsize;
++	long seek;
+ 	int fdin;	/* Used for streaming file */
+ 	off_t offset;	/* offset in cpio file */
+ 	long long size;
+diff --git a/include/util.h b/include/util.h
+index f906aa5..e2a4b83 100644
+--- a/include/util.h
++++ b/include/util.h
+@@ -93,7 +93,7 @@ typedef void (*notifier) (RECOVERY_STATUS status, int level, const char *msg);
+ 
+ #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+ 
+-#define TMPDIR		"/tmp/"
++#define TMPDIR		"/media/userdata/.swupdate/"
+ 
+ #define LG_16 4
+ #define FROM_HEX(f) from_ascii (f, sizeof f, LG_16)
+diff --git a/parser/parser.c b/parser/parser.c
+index 3a0fcbe..5793116 100644
+--- a/parser/parser.c
++++ b/parser/parser.c
+@@ -401,6 +401,10 @@ static void parse_images(parsertype p, void *cfg, struct swupdate_cfg *swcfg)
+ 		get_field(p, elem, "installed-directly", &image->install_directly);
+ 		get_field(p, elem, "install-if-different", &image->id.install_if_different);
+ 		get_field(p, elem, "encrypted", &image->is_encrypted);
++		if (strncmp(image->type, "raw", 3) == 0) {
++			get_field(p, elem, "seek", &image->seek);
++		}
++
+ 
+ 		TRACE("Found %sImage %s %s: %s in %s : %s for handler %s%s %s\n",
+ 			image->compressed ? "compressed " : "",
+-- 
+1.9.1
+
